@@ -1,6 +1,9 @@
 package pl.nullpointerexception.restapi.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -27,12 +30,14 @@ public class PostService {
         return postRepository.findAllPosts(PageRequest.of(page, PAGE_SIZE, Sort.by(sort, "id")));
     }
 
+    @Cacheable(cacheNames = "SinglePost", key = "#id")
     public Post getSinglePost(long id) {
         return postRepository.findById(id)
                 .orElseThrow();
     }
 
-    public List<Post> getPostsWithComments(int page, Sort.Direction sort) {
+    @Cacheable(cacheNames = "PostsWithComments")
+    public List<Post>  getPostsWithComments(int page, Sort.Direction sort) {
         List<Post> allPosts = postRepository.findAllPosts(PageRequest.of(page, PAGE_SIZE, Sort.by(sort, "id")));
         List<Long> ids = allPosts.stream()
                 .map(Post::getId)
@@ -53,6 +58,7 @@ public class PostService {
     }
 
     @Transactional
+    @CachePut(cacheNames = "SinglePost", key = "#result.id")
     public Post editPost(Post post) {
         Post postEdited = postRepository.findById(post.getId()).orElseThrow();
         postEdited.setTitle(post.getTitle());
@@ -60,7 +66,13 @@ public class PostService {
         return postEdited;
     }
 
+    @CacheEvict(cacheNames = "SinglePost")
     public void deletePost(long id) {
         postRepository.deleteById(id);
+    }
+
+    @CacheEvict(cacheNames = "PostsWithComments")
+    public void clearPostsWithComment() {
+
     }
 }
